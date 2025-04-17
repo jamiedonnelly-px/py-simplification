@@ -1,5 +1,3 @@
-English 🇺🇸 / [[Japanese 🇯🇵]](README_ja.md)
-
 # Mesh Simplification
 
 The python script for "Surface Simplification Using Quadric Error Metrics, 1997" [[Paper]](http://www.cs.cmu.edu/~garland/Papers/quadrics.pdf)
@@ -16,24 +14,7 @@ tqdm
 ```
 
 ## Installation
-
-```
-# Clone
-git clone https://github.com/astaka-pe/mesh_simplification.git
-cd mesh_simplification
-
-# Docker
-docker image build -t astaka-pe/mesh-simp .
-docker run -itd --gpus all --name mesh-simp -v .:/work astaka-pe/mesh-simp
-docker exec -it mesh-simp /bin/bash
-```
-
-## Usage
-
-```
-python simplification.py [-h] -i data/ankylosaurus.obj [-v V] [-p P] [-optim] [-isotropic]
-```
-A simplified mesh will be output in `data/output/`.
+... 
 
 ### Parameters
 - `-i`: Input file name [Required]

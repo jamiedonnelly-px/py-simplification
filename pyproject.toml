@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=42"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name="py-simplification"
+version = "1.0.0"
+authors = [{name = "Jamie Donnelly", email = "jamie.donnelly@physicsx.ai"}]
+requires-python = ">=3.10, <3.13"
+description = "Python bindings for the C++ library: https://github.com/hjwdzh/ManifoldPlus"
+dependencies = [
+    "numpy~=1.26.0",
+    "pyvista>=0.34.0",
+    "scipy~=1.11.3",
+    "scikit-learn~=1.3.0",
+    "tqdm~=4.67.1",
+]
+license = { file = "LICENSE" }
+
+[project.optional-dependencies]
+dev = [
+    "isort",
+    "ruff"
+]
+
+[tool.setuptools.packages.find]
+include = [
+    "py_simplification"
+]
