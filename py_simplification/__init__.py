@@ -4,6 +4,7 @@ import pyvista as pv
 
 from .mesh import _simplify
 
+__all__ = ["collapse_edges"]
 
 def collapse_edges(
     mesh: pv.PolyData,
@@ -71,5 +72,3 @@ def collapse_edges(
 
     return pv.PolyData().from_regular_faces(o_verts, o_faces)
 
-
-__all__ = ["collapse_edges"]
