@@ -1,3 +1,13 @@
+# py-simplification
+
+Implements a python package and simple API for the using the underlying script and utils outlined in the repo `https://github.com/astaka-pe/mesh_simplification` by @astaka-pe. 
+
+The library implements the known surface simplification using quadractic error metrics algorithm, which seems to be a more reliable approach to mesh simplification/decimation while maintaining manifoldness of the underlying mesh.
+
+Can be installed by cloning the repo and running `pip install .`
+
+Original README.md by @astaka-pe attached below.
+
 # Mesh Simplification
 
 The python script for "Surface Simplification Using Quadric Error Metrics, 1997" [[Paper]](http://www.cs.cmu.edu/~garland/Papers/quadrics.pdf)
