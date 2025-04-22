@@ -1,22 +1,19 @@
-.PHONY: install-package install-package-dev lint
+.PHONY: install install-dev lint
 
-install-package:
-	@pip install -v . 
+install:
+	@pip install -e . 
 
-install-package-dev:
-	@pip install -v ".[dev]"
+install-dev:
+	@pip install -e ".[dev]"
 
-test: install-package-dev
+test:
 	@pytest --verbose
-
-generate-samples: install-package
-	@python tests/generate_samples.py
 
 lint:
 	@echo "Running Ruff and Isort..."
+	@isort .
 	@ruff format .
 	@ruff check . --fix
-	@isort .
 
 clean:
 	@rm -rf build

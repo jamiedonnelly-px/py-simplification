@@ -6,6 +6,7 @@ from .mesh import _simplify
 
 __all__ = ["collapse_edges"]
 
+
 def collapse_edges(
     mesh: pv.PolyData,
     target_verts: int | None = None,
@@ -38,7 +39,8 @@ def collapse_edges(
         raise ValueError("Ratio must be in the range (0,1].")
     if (not isinstance(optimised, bool)) or (not isinstance(isotropic, bool)):
         raise TypeError("optimised and isotropic arguments must be strictly bools.")
-    if not isinstance(valence_weight, float) or not isinstance(valence_weight, int):
+    if not isinstance(valence_weight, (float, int)):
+        print(type(valence_weight), valence_weight)
         raise TypeError("valence_weight must be of type float or int.")
     if not isinstance(optimal_valence, int):
         raise TypeError("optimal_valence must be of type int.")
@@ -71,4 +73,3 @@ def collapse_edges(
     )
 
     return pv.PolyData().from_regular_faces(o_verts, o_faces)
-

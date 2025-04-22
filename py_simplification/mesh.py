@@ -1,11 +1,13 @@
 """Contains the core functionality."""
 
+import copy
+import heapq
+
 import numpy as np
 import scipy as sp
-import heapq
-import copy
-from tqdm import tqdm
 from sklearn.preprocessing import normalize
+from tqdm import tqdm
+
 
 def _simplify(
     verts: np.array,
@@ -234,7 +236,7 @@ class Mesh:
                     v4_new = np.matmul(
                         Q_lp_inv, np.array([[0, 0, 0, 1]]).reshape(-1, 1)
                     ).reshape(-1)
-                except:
+                except Exception:
                     v_new = 0.5 * (v_0 + v_1)
                     v4_new = np.concatenate([v_new, np.array([1])])
 
@@ -250,10 +252,10 @@ class Mesh:
         """ 3. collapse minimum-error vertex """
         simp_mesh = copy.deepcopy(self)
 
-        vi_mask = np.ones([len(simp_mesh.vs)]).astype(np.bool_)
-        fi_mask = np.ones([len(simp_mesh.faces)]).astype(np.bool_)
+        vi_mask = np.ones([len(simp_mesh._vs)]).astype(np.bool_)
+        fi_mask = np.ones([len(simp_mesh._faces)]).astype(np.bool_)
 
-        vert_map = [{i} for i in range(len(simp_mesh.vs))]
+        vert_map = [{i} for i in range(len(simp_mesh._vs))]
         pbar = tqdm(total=np.sum(vi_mask) - target_v, desc="Processing")
         while np.sum(vi_mask) > target_v:
             if len(E_heap) == 0:
@@ -262,7 +264,7 @@ class Mesh:
 
             E_0, (vi_0, vi_1) = heapq.heappop(E_heap)
 
-            if (vi_mask[vi_0] == False) or (vi_mask[vi_1] == False):
+            if (not vi_mask[vi_0]) or (not vi_mask[vi_1]):
                 continue
 
             """ edge collapse """
@@ -330,10 +332,10 @@ class Mesh:
         """ 3. collapse minimum-error vertex """
         simp_mesh = copy.deepcopy(self)
 
-        vi_mask = np.ones([len(simp_mesh.vs)]).astype(np.bool_)
-        fi_mask = np.ones([len(simp_mesh.faces)]).astype(np.bool_)
+        vi_mask = np.ones([len(simp_mesh._vs)]).astype(np.bool_)
+        fi_mask = np.ones([len(simp_mesh._faces)]).astype(np.bool_)
 
-        vert_map = [{i} for i in range(len(simp_mesh.vs))]
+        vert_map = [{i} for i in range(len(simp_mesh._vs))]
         pbar = tqdm(total=np.sum(vi_mask) - target_v, desc="Processing")
         while np.sum(vi_mask) > target_v:
             if len(E_heap) == 0:
@@ -342,7 +344,7 @@ class Mesh:
 
             E_0, (vi_0, vi_1) = heapq.heappop(E_heap)
 
-            if (vi_mask[vi_0] == False) or (vi_mask[vi_1] == False):
+            if (not vi_mask[vi_0]) or (not vi_mask[vi_1]):
                 continue
 
             """ edge collapse """
@@ -395,7 +397,6 @@ class Mesh:
         Q_s,
         E_heap,
     ):
-        # import pdb;pdb.set_trace()
         pass
 
     def edge_collapse(
@@ -441,12 +442,12 @@ class Mesh:
 
         fi_mask[np.array(list(merged_faces)).astype(np.int32)] = False
 
-        simp_mesh.vs[vi_0] = 0.5 * (simp_mesh.vs[vi_0] + simp_mesh.vs[vi_1])
+        simp_mesh._vs[vi_0] = 0.5 * (simp_mesh._vs[vi_0] + simp_mesh._vs[vi_1])
 
         """ recompute E """
         Q_0 = Q_s[vi_0]
         for vv_i in simp_mesh.v2v[vi_0]:
-            v_mid = 0.5 * (simp_mesh.vs[vi_0] + simp_mesh.vs[vv_i])
+            v_mid = 0.5 * (simp_mesh._vs[vi_0] + simp_mesh._vs[vv_i])
             Q_1 = Q_s[vv_i]
             Q_new = Q_0 + Q_1
             v4_mid = np.concatenate([v_mid, np.array([1])])
@@ -506,12 +507,11 @@ class Mesh:
 
         fi_mask[np.array(list(merged_faces)).astype(np.int32)] = False
 
-        simp_mesh.vs[vi_0] = 0.5 * (simp_mesh.vs[vi_0] + simp_mesh.vs[vi_1])
+        simp_mesh._vs[vi_0] = 0.5 * (simp_mesh._vs[vi_0] + simp_mesh._vs[vi_1])
 
         """ recompute E """
         for vv_i in simp_mesh.v2v[vi_0]:
-            v_mid = 0.5 * (simp_mesh.vs[vi_0] + simp_mesh.vs[vv_i])
-            edge_len = np.linalg.norm(simp_mesh.vs[vi_0] - simp_mesh.vs[vv_i])
+            edge_len = np.linalg.norm(simp_mesh._vs[vi_0] - simp_mesh._vs[vv_i])
             valence_penalty = 1
             if valence_aware:
                 merged_faces = simp_mesh.vf[vi_0].intersection(simp_mesh.vf[vv_i])
@@ -536,22 +536,22 @@ class Mesh:
     @staticmethod
     def rebuild_mesh(simp_mesh, vi_mask, fi_mask, vert_map):
         face_map = dict(zip(np.arange(len(vi_mask)), np.cumsum(vi_mask) - 1))
-        simp_mesh.vs = simp_mesh.vs[vi_mask]
+        simp_mesh._vs = simp_mesh._vs[vi_mask]
 
         vert_dict = {}
         for i, vm in enumerate(vert_map):
             for j in vm:
                 vert_dict[j] = i
 
-        for i, f in enumerate(simp_mesh.faces):
+        for i, f in enumerate(simp_mesh._faces):
             for j in range(3):
                 if f[j] in vert_dict:
-                    simp_mesh.faces[i][j] = vert_dict[f[j]]
+                    simp_mesh._faces[i][j] = vert_dict[f[j]]
 
-        simp_mesh.faces = simp_mesh.faces[fi_mask]
-        for i, f in enumerate(simp_mesh.faces):
+        simp_mesh._faces = simp_mesh._faces[fi_mask]
+        for i, f in enumerate(simp_mesh._faces):
             for j in range(3):
-                simp_mesh.faces[i][j] = face_map[f[j]]
+                simp_mesh._faces[i][j] = face_map[f[j]]
 
         simp_mesh.compute_face_normals()
         simp_mesh.compute_face_center()
