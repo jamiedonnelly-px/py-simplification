@@ -12,3 +12,4 @@ def test_simplify():
     input = pv.read(fpath)
     simplified = collapse_edges(input)
     assert simplified.n_points == input.n_points // 2
+    assert simplified.is_manifold
