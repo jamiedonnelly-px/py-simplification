@@ -6,8 +6,8 @@ import heapq
 import numpy as np
 import scipy as sp
 from sklearn.preprocessing import normalize
-from tqdm import tqdm
 
+LOG_FREQ = 100
 
 def _simplify(
     verts: np.array,
@@ -256,7 +256,8 @@ class Mesh:
         fi_mask = np.ones([len(simp_mesh._faces)]).astype(np.bool_)
 
         vert_map = [{i} for i in range(len(simp_mesh._vs))]
-        pbar = tqdm(total=np.sum(vi_mask) - target_v, desc="Processing")
+        step_counter = 0
+        total = np.sum(vi_mask) - target_v
         while np.sum(vi_mask) > target_v:
             if len(E_heap) == 0:
                 print("[Warning]: edge cannot be collapsed anymore!")
@@ -308,8 +309,9 @@ class Mesh:
                     E_heap,
                     valence_aware=valence_aware,
                 )
-                pbar.update(1)
-                # print(np.sum(vi_mask), np.sum(fi_mask))
+                if (step_counter+1) % LOG_FREQ == 0:
+                    print(f"{step_counter}/{total} edges collapsed...{(step_counter/total)*100:.0f}% done.")
+                step_counter += 1
 
         self.rebuild_mesh(simp_mesh, vi_mask, fi_mask, vert_map)
         simp_mesh.simp = True
@@ -336,7 +338,8 @@ class Mesh:
         fi_mask = np.ones([len(simp_mesh._faces)]).astype(np.bool_)
 
         vert_map = [{i} for i in range(len(simp_mesh._vs))]
-        pbar = tqdm(total=np.sum(vi_mask) - target_v, desc="Processing")
+        step_counter = 0
+        total = np.sum(vi_mask) - target_v
         while np.sum(vi_mask) > target_v:
             if len(E_heap) == 0:
                 print("[Warning]: edge cannot be collapsed anymore!")
@@ -375,8 +378,9 @@ class Mesh:
                     E_heap,
                     valence_aware=valence_aware,
                 )
-                pbar.update(1)
-                # print(np.sum(vi_mask), np.sum(fi_mask))
+                if (step_counter+1) % LOG_FREQ == 0:
+                    print(f"{step_counter}/{total} edges collapsed...{(step_counter/total)*100:.0f}% done.")
+                step_counter += 1
 
         self.rebuild_mesh(simp_mesh, vi_mask, fi_mask, vert_map)
         simp_mesh.simp = True
