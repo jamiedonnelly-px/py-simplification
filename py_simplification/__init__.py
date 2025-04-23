@@ -16,6 +16,7 @@ def collapse_edges(
     valence_weight: float = 1.0,
     optimal_valence: int = 6,
     use_midpoint: bool = False,
+    verbose: bool = True,
 ) -> pv.PolyData:
     """_summary_
 
@@ -27,6 +28,7 @@ def collapse_edges(
         isotropic (bool, optional): _description_. Defaults to False.
         valence_weight (float, optional): _description_. Defaults to 1.0.
         optimal_valence (int, optional): _description_. Defaults to 6.
+        verbose (bool): log. Defaults to True.
     """
     # validate inputs
     if not isinstance(mesh, pv.PolyData):
@@ -70,6 +72,7 @@ def collapse_edges(
         valence_weight=valence_weight,
         optimal_valence=optimal_valence,
         use_midpoint=use_midpoint,
+        verbose=verbose,
     )
 
     return pv.PolyData().from_regular_faces(o_verts, o_faces)

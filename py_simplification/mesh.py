@@ -18,20 +18,18 @@ def _simplify(
     valence_weight: float,
     optimal_valence: int,
     use_midpoint: bool,
+    verbose: bool = True,
 ) -> tuple[np.array, np.array]:
-    mesh = Mesh(verts, faces, valence_weight, optimal_valence)
+    mesh = Mesh(verts, faces, valence_weight, optimal_valence, verbose)
 
     if isotropic:
-        simplified: Mesh = mesh.edge_based_simplification(
+        return mesh.edge_based_simplification(
             target_v=target_verts, valence_aware=optimised
         )
     else:
-        simplified: Mesh = mesh.simplification(
+        return mesh.simplification(
             target_v=target_verts, valence_aware=optimised, midpoint=use_midpoint
         )
-
-    return simplified.verts, simplified.faces
-
 
 class Mesh:
     def __init__(
@@ -40,17 +38,36 @@ class Mesh:
         faces: np.array,
         valence_weight: float,
         optimal_valence: int,
+        verbose: bool
     ):
         self._valence_weight = valence_weight
         self._optimal_valence = optimal_valence
         self._vs, self._faces = verts, faces
+        self.verbose = verbose
+
         self.compute_face_normals()
+        if self.verbose:
+            print("Computed face normals.")
+        
         self.compute_face_center()
-        self.build_gemm()  # self.edges, self.ve
+        if self.verbose:
+            print("Compute face centers.")
+        
+        self.build_gemm()
+        if self.verbose:
+            print("Built edge sets.")
+        
         self.compute_vert_normals()
+        if self.verbose:
+            print("Computed vert normals.")
+
         self.build_v2v()
+        if self.verbose:
+            print("Built v2v")
+
         self.build_vf()
-        self.build_uni_lap()
+        if self.verbose:
+            print("Build vf")        
 
     @property
     def verts(self) -> np.array:
@@ -116,9 +133,8 @@ class Mesh:
             self._vs[self._faces[:, 2]] - self._vs[self._faces[:, 0]],
         )
         norm = np.linalg.norm(face_normals, axis=1, keepdims=True) + 1e-24
-        face_areas = 0.5 * np.sqrt((face_normals**2).sum(axis=1))
         face_normals /= norm
-        self.fn, self.fa = face_normals, face_areas
+        self.fn = face_normals
 
     def compute_vert_normals(self):
         vert_normals = np.zeros((3, len(self._vs)))
@@ -136,9 +152,7 @@ class Mesh:
         self.vn = vert_normals
 
     def compute_face_center(self):
-        faces = self._faces
-        vs = self._vs
-        self.fc = np.sum(vs[faces], 1) / 3.0
+        self.fc = np.sum(self._vs[self._faces], 1) / 3.0
 
     def build_uni_lap(self):
         """compute uniform laplacian matrix"""
@@ -192,17 +206,7 @@ class Mesh:
             v2v[e[1]].append(e[0])
         self.v2v = v2v
 
-        """ compute adjacent matrix """
-        edges = self.edges
-        v2v_inds = edges.T
-        v2v_inds = np.concatenate([v2v_inds, v2v_inds[[1, 0]]], axis=1).astype(np.int64)
-        v2v_vals = np.ones(v2v_inds.shape[1], dtype=np.float32)
-        self.v2v_mat = sp.sparse.csr_matrix(
-            (v2v_vals, v2v_inds), shape=(len(self._vs), len(self._vs))
-        )
-        self.v_dims = np.sum(self.v2v_mat.toarray(), axis=1)
-
-    def simplification(self, target_v: int, valence_aware: bool, midpoint: bool):
+    def simplification(self, target_v: int, valence_aware: bool, midpoint: bool) -> tuple[np.array]:
         vs, vf, fn, fc, edges = self._vs, self.vf, self.fn, self.fc, self.edges
 
         """ 1. compute Q for each vertex """
@@ -276,24 +280,10 @@ class Mesh:
 
             if len(shared_vv) != 2:
                 """ non-manifold! """
-                # print("non-manifold can be occured!!" , len(shared_vv))
-                self.remove_tri_valance(
-                    simp_mesh,
-                    vi_0,
-                    vi_1,
-                    shared_vv,
-                    merged_faces,
-                    vi_mask,
-                    fi_mask,
-                    vert_map,
-                    Q_s,
-                    E_heap,
-                )
                 continue
 
             elif len(merged_faces) != 2:
                 """ boundary """
-                # print("boundary edge cannot be collapsed!")
                 continue
 
             else:
@@ -309,17 +299,15 @@ class Mesh:
                     E_heap,
                     valence_aware=valence_aware,
                 )
-                if (step_counter+1) % LOG_FREQ == 0:
+                if ((step_counter+1) % LOG_FREQ == 0) and self.verbose:
                     print(f"{step_counter}/{total} edges collapsed...{(step_counter/total)*100:.0f}% done.")
                 step_counter += 1
 
-        self.rebuild_mesh(simp_mesh, vi_mask, fi_mask, vert_map)
-        simp_mesh.simp = True
-        self.build_hash(simp_mesh, vi_mask, vert_map)
+        verts, faces = self.extract_arrays(simp_mesh, vi_mask, fi_mask, vert_map)
 
-        return simp_mesh
+        return verts, faces
 
-    def edge_based_simplification(self, target_v: int, valence_aware=True):
+    def edge_based_simplification(self, target_v: int, valence_aware=True) -> tuple[np.array]:
         vs, edges = self._vs, self.edges
         edge_len = vs[edges][:, 0, :] - vs[edges][:, 1, :]
         edge_len = np.linalg.norm(edge_len, axis=1)
@@ -378,30 +366,13 @@ class Mesh:
                     E_heap,
                     valence_aware=valence_aware,
                 )
-                if (step_counter+1) % LOG_FREQ == 0:
+                if ((step_counter+1) % LOG_FREQ == 0) and self.verbose:
                     print(f"{step_counter}/{total} edges collapsed...{(step_counter/total)*100:.0f}% done.")
                 step_counter += 1
 
-        self.rebuild_mesh(simp_mesh, vi_mask, fi_mask, vert_map)
-        simp_mesh.simp = True
-        self.build_hash(simp_mesh, vi_mask, vert_map)
+        verts, faces = Mesh.extract_arrays(simp_mesh, vi_mask, fi_mask, vert_map)
 
-        return simp_mesh
-
-    @staticmethod
-    def remove_tri_valance(
-        simp_mesh,
-        vi_0,
-        vi_1,
-        shared_vv,
-        merged_faces,
-        vi_mask,
-        fi_mask,
-        vert_map,
-        Q_s,
-        E_heap,
-    ):
-        pass
+        return verts, faces
 
     def edge_collapse(
         self,
@@ -538,7 +509,7 @@ class Mesh:
         return valence_penalty
 
     @staticmethod
-    def rebuild_mesh(simp_mesh, vi_mask, fi_mask, vert_map):
+    def extract_arrays(simp_mesh, vi_mask, fi_mask, vert_map):
         face_map = dict(zip(np.arange(len(vi_mask)), np.cumsum(vi_mask) - 1))
         simp_mesh._vs = simp_mesh._vs[vi_mask]
 
@@ -557,34 +528,4 @@ class Mesh:
             for j in range(3):
                 simp_mesh._faces[i][j] = face_map[f[j]]
 
-        simp_mesh.compute_face_normals()
-        simp_mesh.compute_face_center()
-        simp_mesh.build_gemm()
-        simp_mesh.compute_vert_normals()
-        simp_mesh.build_v2v()
-        simp_mesh.build_vf()
-
-    @staticmethod
-    def build_hash(simp_mesh, vi_mask, vert_map):
-        pool_hash = {}
-        unpool_hash = {}
-        for simp_i, idx in enumerate(np.where(vi_mask)[0]):
-            if len(vert_map[idx]) == 0:
-                print("[ERROR] parent node cannot be found!")
-                return
-            for org_i in vert_map[idx]:
-                pool_hash[org_i] = simp_i
-            unpool_hash[simp_i] = list(vert_map[idx])
-
-        """ check """
-        vl_sum = 0
-        for vl in unpool_hash.values():
-            vl_sum += len(vl)
-
-        if (len(set(pool_hash.keys())) != len(vi_mask)) or (vl_sum != len(vi_mask)):
-            print("[ERROR] Original vetices cannot be covered!")
-            return
-
-        pool_hash = sorted(pool_hash.items(), key=lambda x: x[0])
-        simp_mesh.pool_hash = pool_hash
-        simp_mesh.unpool_hash = unpool_hash
+        return simp_mesh.verts, simp_mesh.faces
